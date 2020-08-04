@@ -1,0 +1,31 @@
+name: 'Cache'
+on:
+  push:
+  repository_dispatch:
+  schedule:
+    - cron: '30 23 * * *'
+jobs:
+  cache:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - name: Release
+      run: |
+        versions=$(curl -sSL https://getcomposer.org/versions)
+        for v in stable preview snapshot; do
+          curl -o composer-$v.phar -sSL https://getcomposer.org$(echo $versions | jq -r ".\"$v\"[].path")
+        done
+        for v in 1 2; do
+          curl -o composer-v$v.phar -sSL https://getcomposer.org$(echo $versions | jq -r ".\"$v\"[].path")
+        done
+        set -x
+        assets=()
+        for asset in ./*.phar; do
+          assets+=("-a" "$asset")
+        done
+        time=$(date '+%Y-%m-%d %H:%M:%S')
+        git push -f origin :1.0.0 || true
+        hub release delete "1.0.0" || true
+        hub release create "${assets[@]}" -m "$time" "1.0.0"
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

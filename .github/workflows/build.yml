@@ -12,7 +12,6 @@ jobs:
     - name: Release
       run: |
         versions=$(curl -sSL https://getcomposer.org/versions)
-        releases=()
         release_versions=$(curl -sSL https://github.com/shivammathur/composer-cache/releases/latest/download/versions)
         if [ "$versions" = "$release_versions" ]; then
           echo "No new releases"
@@ -28,21 +27,18 @@ jobs:
               sudo chmod a+x /usr/local/bin/composer
               release=$(composer -V)
               echo $release
-              releases+=("-m" "composer-$v.phar: $release")
             fi
           done
           curl -o versions -sSL https://getcomposer.org/versions
           set -x
           assets=()
           for asset in ./*.phar; do
-            assets+=("-a" "$asset")
+            assets+=("$asset")
           done
-          assets+=("-a" "./versions")
+          assets+=("./versions")
           echo "${assets[@]}"
-          time=$(date '+%Y-%m-%d %H:%M:%S')
-          git push -f origin :versions || true
-          hub release delete "versions" || true
-          hub release create "${assets[@]}" -m "versions" "${releases[@]}" "versions"
+          gh release delete "versions" -y || true
+          gh release create "versions" "${assets[@]}"  -t "versions" -F ./versions
         fi
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,0 +1,51 @@
+name: 'Patch'
+on:
+  workflow_dispatch:
+    inputs:
+      composer-version:
+        description: composer version
+        required: true
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    env:
+      version: ${{ github.event.inputs.composer-version }}
+      GITHUB_WORKSPACE: ${{ github.workspace }}
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v2
+    - name: "Install PHP"
+      uses: "shivammathur/setup-php@v2"
+      with:
+        php-version: "8.0"
+    - name: Fetch
+      run: |
+        tag="$(curl -sL https://github.com/shivammathur/composer-cache/releases/latest/download/versions | jq -r ".[\"${version}\"][0].version")"
+        git clone https://github.com/composer/composer "/tmp/composer-$version"
+        cd "/tmp/composer-$version" || exit 1
+        git checkout "$tag"
+    - name: Patch
+      run: |
+        cd "/tmp/composer-$version" || exit 1
+        for patch in "$GITHUB_WORKSPACE"/patches/*.patch; do
+          git apply "$patch" || true
+        done
+    - name: Composer Install
+      run: |
+        cd "/tmp/composer-$version" || exit 1
+        composer install --ansi --no-interaction --no-progress --no-suggest --prefer-dist
+    - name: Build
+      run: |
+        cd "/tmp/composer-$version" || exit 1
+        php -d phar.readonly=0 bin/compile
+    - name: Smoke Test
+      run: |
+        cd "/tmp/composer-$version" || exit 1
+        php ./composer.phar -V
+    - name: Release
+      run: |
+        cd "$GITHUB_WORKSPACE" || exit 1
+        sudo cp "/tmp/composer-$version/composer.phar" "./composer-$version.phar"
+        gh release upload "versions" "./composer-$version.phar" --clobber
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

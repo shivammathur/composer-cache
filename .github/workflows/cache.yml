@@ -37,8 +37,13 @@ jobs:
           done
           assets+=("./versions")
           echo "${assets[@]}"
-          gh release delete "versions" -y || true
-          gh release create "versions" "${assets[@]}"  -t "versions" -F ./versions
+          if ! gh release view versions; then
+            gh release create "versions" "${assets[@]}"  -t "versions" -F ./versions
+          else
+            gh release upload "versions" "${assets[@]}" --clobber
+            endpoint=$(gh api repos/${{ github.repository }}/releases/tags/versions -H Accept:application/vnd.github.v3+json | jq -r '.url')
+            gh api "$endpoint" -H Accept:application/vnd.github.v3+json -H Content-Type:application/json -X PATCH -f body="$(cat ./versions)" --silent
+          fi
         fi
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

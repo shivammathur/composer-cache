@@ -17,7 +17,7 @@ jobs:
           echo "No new releases"
         else
           for v in stable preview snapshot 1 2; do
-            curl -o composer-$v.phar -sSL https://getcomposer.org$(echo $versions | jq -r ".\"$v\"[].path")
+            curl -o composer-$v.phar -sSL https://getcomposer.org$(echo $versions | jq -r ".\"$v\"[].path" | head -n 1)
             php -r "try {\$p=new Phar('composer-$v.phar', 0);exit(0);} catch(Exception \$e) {exit(1);}"
             if [ $? -eq 1 ]; then
               echo "Could not download composer $v"

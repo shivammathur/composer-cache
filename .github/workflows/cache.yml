@@ -2,6 +2,15 @@ name: 'Cache'
 on:
   repository_dispatch:
   workflow_dispatch:
+    inputs:
+      force:        
+        type: choice
+        description: Update phars by force
+        options:
+        - true
+        - false
+        default: 'false'
+        required: false
   schedule:
     - cron: '0 * * * *'
 jobs:
@@ -9,41 +18,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v2
-    - name: Release
-      run: |
-        versions=$(curl -sSL https://getcomposer.org/versions)
-        release_versions=$(curl -sSL https://github.com/shivammathur/composer-cache/releases/latest/download/versions)
-        if [ "$versions" = "$release_versions" ]; then
-          echo "No new releases"
-        else
-          for v in stable preview snapshot 1 2; do
-            curl -o composer-$v.phar -sSL https://getcomposer.org$(echo $versions | jq -r ".\"$v\"[].path" | head -n 1)
-            php -r "try {\$p=new Phar('composer-$v.phar', 0);exit(0);} catch(Exception \$e) {exit(1);}"
-            if [ $? -eq 1 ]; then
-              echo "Could not download composer $v"
-              exit 1;
-            else
-              sudo cp ./composer-$v.phar /usr/local/bin/composer
-              sudo chmod a+x /usr/local/bin/composer
-              release=$(composer -V)
-              echo $release
-            fi
-          done
-          curl -o versions -sSL https://getcomposer.org/versions
-          set -x
-          assets=()
-          for asset in ./*.phar; do
-            assets+=("$asset")
-          done
-          assets+=("./versions")
-          echo "${assets[@]}"
-          if ! gh release view versions; then
-            gh release create "versions" "${assets[@]}"  -t "versions" -F ./versions
-          else
-            gh release upload "versions" "${assets[@]}" --clobber
-            endpoint=$(gh api repos/${{ github.repository }}/releases/tags/versions -H Accept:application/vnd.github.v3+json | jq -r '.url')
-            gh api "$endpoint" -H Accept:application/vnd.github.v3+json -H Content-Type:application/json -X PATCH -f body="$(cat ./versions)" --silent
-          fi
-        fi
+    - name: Cache
+      run: bash cache.sh
       env:
+        FORCE: ${{ github.event.inputs.force }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

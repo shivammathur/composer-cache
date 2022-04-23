@@ -51,6 +51,7 @@ update_release() {
         endpoint="$(gh api repos/"$GITHUB_REPOSITORY"/releases/tags/"$release" -H Accept:application/vnd.github.v3+json | jq -r '.url')"
         gh api "$endpoint" -H Accept:application/vnd.github.v3+json -H Content-Type:application/json -X PATCH -f body="$(cat "$release_notes_file")" --silent
     fi
+    echo "${assets[@]}" | xargs -n 1 -P 2 cds
 }
 
 check_manifest() {
@@ -62,6 +63,13 @@ check_manifest() {
         echo "No new releases"
         exit 0
     fi
+}
+
+install_cloudsmith() {
+    pip3 install --upgrade cloudsmith-cli
+    sudo cp ./scripts/cds /usr/local/bin/cds
+    sudo sed -i "s|REPO|$GITHUB_REPOSITORY|" /usr/local/bin/cds
+    sudo chmod a+x /usr/local/bin/cds
 }
 
 channels=(stable preview snapshot 1 2)
@@ -83,4 +91,5 @@ for channel in "${channels[@]}"; do
     done
 done
 
+install_cloudsmith
 update_release "$release" "$manifest_file"

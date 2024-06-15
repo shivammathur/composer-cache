@@ -48,8 +48,7 @@ update_release() {
         gh release create "$release" "${assets[@]}"  -t "$release" -F "$release_notes_file"
     else
         gh release upload "$release" "${assets[@]}" --clobber
-        endpoint="$(gh api repos/"$GITHUB_REPOSITORY"/releases/tags/"$release" -H Accept:application/vnd.github.v3+json | jq -r '.url')"
-        gh api "$endpoint" -H Accept:application/vnd.github.v3+json -H Content-Type:application/json -X PATCH -f body="$(cat "$release_notes_file")" --silent
+        gh release edit "$release" --notes-file "$release_notes_file"
     fi
     echo "${assets[@]}" | xargs -n 1 -P 2 cds
 }

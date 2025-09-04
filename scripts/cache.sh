@@ -35,6 +35,12 @@ fetch_installer() {
     fi
 }
 
+upload_to_s3() {
+    for asset in "$@"; do
+        aws --endpoint-url $AWS_S3_ENDPOINT s3 cp "$asset" "s3://composer/$(basename "$asset")" --only-show-errors
+    done
+}
+
 update_release() {
     release=$1
     release_notes_file=$2
@@ -50,6 +56,7 @@ update_release() {
         gh release upload "$release" "${assets[@]}" --clobber
         gh release edit "$release" --notes-file "$release_notes_file"
     fi
+    upload_to_s3 "${assets[@]}"
     echo "${assets[@]}" | xargs -n 1 -P 2 cds
 }
 
@@ -71,6 +78,12 @@ install_cloudsmith() {
     sudo chmod a+x /usr/local/bin/cds
 }
 
+install_awscli() {
+    if ! command -v aws >/dev/null 2>&1; then
+        pip3 install --upgrade awscli >/dev/null
+    fi
+}
+
 channels=(stable preview snapshot 1 2)
 php_versions=(5.3 5.4 5.5 5.6 7.0 7.1 7.2 7.3 7.4 8.0 8.1 8.2 8.3 8.4)
 release=versions
@@ -90,5 +103,6 @@ for channel in "${channels[@]}"; do
     done
 done
 
+install_awscli
 install_cloudsmith
 update_release "$release" "$manifest_file"

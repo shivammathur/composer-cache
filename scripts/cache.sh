@@ -35,10 +35,17 @@ fetch_installer() {
     fi
 }
 
+clear_cf_cache() {
+    curl -sS -X POST "https://api.cloudflare.com/client/v4/zones/$CF_CACHE_ZONE/purge_cache" \
+        -H "Authorization: Bearer $CF_CACHE_KEY" -H "Content-Type: application/json" \
+        --data '{"tags":["composer-rolling"]}'
+}
+
 upload_to_s3() {
     for asset in "$@"; do
         aws --endpoint-url $AWS_S3_ENDPOINT s3 cp "$asset" "s3://composer/$(basename "$asset")" --only-show-errors
     done
+    clear_cf_cache
 }
 
 update_release() {

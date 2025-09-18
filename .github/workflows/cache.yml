@@ -19,6 +19,8 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - uses: shivammathur/setup-php@v2
+      with:
+        ini-values: error_reporting=E_ALL&~E_DEPRECATED&~E_USER_DEPRECATED
     - name: Cache
       run: bash scripts/cache.sh
       env:
